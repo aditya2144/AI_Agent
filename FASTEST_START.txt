@@ -1,0 +1,60 @@
+================================================================================
+FASTEST WAY TO START - COPY & PASTE THESE COMMANDS
+================================================================================
+
+BEFORE YOU START:
+1. Get API key from: https://makersuite.google.com/app/apikey
+2. Edit .env file: notepad .env
+3. Replace GEMINI_API_KEY=your_gemini_api_key_here with your actual key
+4. Save and close
+
+THEN:
+
+================================================================================
+TERMINAL 1 - BACKEND (Copy-paste all at once)
+================================================================================
+
+$python = "C:\Users\solos\AppData\Local\Python\pythoncore-3.12-64\python.exe"
+& $python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+& $python -c "from backend.app.database import init_db; init_db()"
+cd backend
+& $python -m uvicorn app.main:app --reload
+
+Wait until you see: "Uvicorn running on http://0.0.0.0:8000"
+KEEP THIS WINDOW OPEN
+
+================================================================================
+TERMINAL 2 - FRONTEND (New PowerShell, copy-paste all at once)
+================================================================================
+
+cd "C:\Users\solos\OneDrive\Desktop\AI_Voice_Agent"
+$python = "C:\Users\solos\AppData\Local\Python\pythoncore-3.12-64\python.exe"
+.\venv\Scripts\Activate.ps1
+cd frontend
+& $python -m streamlit run app.py
+
+Browser opens to: http://localhost:8501
+
+================================================================================
+QUICK TEST
+================================================================================
+
+1. Go to "AI Sales Assistant" tab
+2. Click "New Customer"
+3. Type name: "Test"
+4. Send message: "Hi"
+5. See AI respond!
+
+================================================================================
+URLS
+================================================================================
+
+Dashboard:  http://localhost:8501
+API:        http://localhost:8000
+API Docs:   http://localhost:8000/docs
+
+================================================================================
+DONE! 🎉
+================================================================================

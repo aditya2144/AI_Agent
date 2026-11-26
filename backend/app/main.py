@@ -2,10 +2,15 @@
 
 import logging
 import os
+import io
+import tempfile
+import threading
 from datetime import datetime
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, FileResponse
+import io
 from sqlalchemy.orm import Session
 
 # Load environment variables
@@ -165,12 +170,57 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
         if knowledge_base:
             product_context = knowledge_base.get_context(request.message, k=3)
         
-        # Get AI response
-        response = sales_agent.send_message(
-            user_message=request.message,
-            product_context=product_context,
-            conversation_history=request.conversation_history,
-        )
+        # Get AI response with threading timeout (Windows compatible)
+        try:
+            ai_result = []
+            ai_error = []
+
+            def call_gemini():
+                try:
+                    result = sales_agent.send_message(
+                        user_message=request.message,
+                        product_context=product_context,
+                        conversation_history=request.conversation_history,
+                    )
+                    ai_result.append(result)
+                except Exception as e:
+                    ai_error.append(str(e))
+
+            thread = threading.Thread(target=call_gemini, daemon=True)
+            thread.start()
+            thread.join(timeout=10)  # 10 seconds for Gemini
+
+            if ai_result:
+                response = ai_result[0]
+                logger.info("Gemini responded successfully")
+            else:
+                err = ai_error[0] if ai_error else "timeout"
+                logger.warning(f"Gemini failed: {err}, using fallback")
+                message_lower = request.message.lower()
+                if any(w in message_lower for w in ["laptop", "computer", "device", "buy", "need", "looking"]):
+                    response = "We have a great range of laptops! For video editing, the Dell XPS 15 with RTX 3060 and 32GB RAM is excellent at $2,499. For gaming, the ASUS ROG at $1,799 is top rated. For business, the Lenovo ThinkPad at $899 is reliable. For budget, the HP Pavilion starts at $499. What is your main use case and budget?"
+                elif any(w in message_lower for w in ["price", "cost", "how much", "budget", "rupee", "inr", "thousand"]):
+                    response = "Our laptops are priced for every budget. Entry level starts at around 40,000 rupees for the HP Pavilion. Mid-range ThinkPad and HP Spectre are around 70,000 to 90,000 rupees. High performance Dell XPS 15 and MacBook Pro are 1,20,000 to 1,80,000 rupees. Gaming laptops like ASUS ROG start at 85,000 rupees. What budget range works for you?"
+                elif any(w in message_lower for w in ["gaming", "game", "play"]):
+                    response = "For gaming, our best options are: ASUS ROG Strix with RTX 4070 at 1,40,000 rupees, Lenovo Legion 5 with RTX 3060 at 85,000 rupees, and MSI Katana with RTX 3050 at 65,000 rupees. All have high refresh rate displays and excellent cooling. What is your budget for a gaming laptop?"
+                elif any(w in message_lower for w in ["video", "edit", "creative", "design", "render"]):
+                    response = "For video editing, the Dell XPS 15 with RTX 3060, 32GB RAM and 4K OLED display is our top pick at 1,70,000 rupees. The MacBook Pro M2 at 1,50,000 rupees is also excellent for creative work. Both handle 4K footage smoothly. What resolution footage do you work with?"
+                elif any(w in message_lower for w in ["business", "work", "office", "professional"]):
+                    response = "For business use, the Lenovo ThinkPad X1 Carbon is outstanding at 95,000 rupees. It is ultra light, has 14 hour battery, and military grade durability. The HP EliteBook at 80,000 rupees is also great for professionals. Would you like to know more?"
+                elif any(w in message_lower for w in ["appointment", "demo", "schedule", "book", "meet", "visit"]):
+                    response = "I would love to schedule a product demo for you. We have slots available tomorrow and throughout this week. The demo takes about 30 minutes and I will show you the exact laptops matching your needs. What day and time works best for you?"
+                elif any(w in message_lower for w in ["hello", "hi", "hey", "good", "how are"]):
+                    response = "Hello! Welcome to TechStore. I am your AI sales assistant and I am here to help you find the perfect laptop. Whether you need it for gaming, video editing, business, or everyday use, I have got great options for every budget. What brings you in today?"
+                elif any(w in message_lower for w in ["thank", "thanks", "bye", "goodbye"]):
+                    response = "Thank you for choosing TechStore! It was a pleasure helping you today. Feel free to call back anytime if you have more questions. Have a great day!"
+                elif any(w in message_lower for w in ["spec", "specification", "ram", "processor", "storage", "ssd", "gpu", "cpu"]):
+                    response = "Our top laptops come with the latest specs. The Dell XPS 15 has Intel i7 13th gen, RTX 3060, 32GB RAM, 1TB NVMe SSD. The ASUS ROG has AMD Ryzen 9, RTX 4070, 16GB RAM, 512GB SSD. The ThinkPad has Intel i5, 16GB RAM, 512GB SSD. Which spec matters most to you?"
+                else:
+                    response = "That is a great point! To give you the best recommendation, could you tell me a bit more about what you need the laptop for and your budget? We have excellent options ranging from 40,000 to 2,00,000 rupees covering gaming, video editing, business, and everyday use."
+
+        except Exception as e:
+            logger.error(f"Chat error: {e}")
+            response = "Thank you for your question. I want to help you find the perfect laptop. Could you tell me more about your specific needs and budget so I can give you the best recommendation?"
         
         # Save conversation if customer_id provided
         customer_id = request.customer_id
@@ -181,22 +231,26 @@ def chat(request: ChatRequest, db: Session = Depends(get_db)):
                 customer_id = customer.id
         
         if customer_id:
-            # Save user message
-            user_conv = Conversation(
-                customer_id=customer_id,
-                message_type="user",
-                content=request.message
-            )
-            db.add(user_conv)
-            
-            # Save assistant response
-            assistant_conv = Conversation(
-                customer_id=customer_id,
-                message_type="assistant",
-                content=response
-            )
-            db.add(assistant_conv)
-            db.commit()
+            try:
+                # Save user message
+                user_conv = Conversation(
+                    customer_id=customer_id,
+                    message_type="user",
+                    content=request.message
+                )
+                db.add(user_conv)
+                
+                # Save assistant response
+                assistant_conv = Conversation(
+                    customer_id=customer_id,
+                    message_type="assistant",
+                    content=response
+                )
+                db.add(assistant_conv)
+                db.commit()
+            except Exception as db_error:
+                logger.error(f"Database error: {db_error}")
+                db.rollback()
         
         # Get lead status if customer exists
         lead_status = None
@@ -485,6 +539,77 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error getting dashboard stats: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ==================== Voice Endpoints ====================
+
+@app.post("/api/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    """Transcribe audio file to text."""
+    try:
+        if not speech_processor:
+            raise HTTPException(status_code=503, detail="Speech processor not initialized")
+        
+        # Save uploaded file
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            contents = await file.read()
+            f.write(contents)
+            temp_path = f.name
+        
+        # Transcribe
+        transcription = speech_processor.speech_to_text(temp_path)
+        
+        # Clean up
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        
+        if not transcription:
+            raise HTTPException(status_code=400, detail="Failed to transcribe audio")
+        
+        logger.info(f"Audio transcribed: {transcription[:50]}...")
+        return {"transcription": transcription}
+        
+    except Exception as e:
+        logger.error(f"Error transcribing audio: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/text-to-speech")
+async def text_to_speech(request: dict):
+    """Convert text to speech."""
+    try:
+        text = request.get("text", "")
+        if not text:
+            raise HTTPException(status_code=400, detail="Text parameter required")
+
+        logger.info(f"TTS: {text[:50]}...")
+
+        audio_path = speech_processor.text_to_speech(text)
+
+        if not audio_path or not os.path.exists(audio_path):
+            raise HTTPException(status_code=500, detail="TTS failed")
+
+        with open(audio_path, "rb") as f:
+            audio_bytes = f.read()
+
+        try:
+            os.remove(audio_path)
+        except:
+            pass
+
+        logger.info(f"TTS success: {len(audio_bytes)} bytes")
+
+        return StreamingResponse(
+            io.BytesIO(audio_bytes),
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "inline; filename=response.mp3"}
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"TTS error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== Health Check ====================

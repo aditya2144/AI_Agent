@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 from typing import List, Tuple, Optional
 import google.genai as genai
 from google.genai import types
@@ -9,210 +10,175 @@ from google.genai.types import GenerateContentConfig
 
 logger = logging.getLogger(__name__)
 
-# Get API key from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 
 class SalesAgent:
     """AI Sales Agent powered by Google Gemini."""
-    
+
     def __init__(self):
-        """Initialize the sales agent."""
         self.model_name = "gemini-3.8-flash"
-        self.conversation_history = []
         self.system_prompt = self._build_system_prompt()
-    
+
     def _build_system_prompt(self) -> str:
-        """Build the system prompt for the sales agent.
-        
-        Returns:
-            System prompt string.
-        """
-        return """You are an enthusiastic and professional sales representative for TechStore, a laptop selling company.
+        return """You are Alex, an expert sales representative for TechStore, a premium laptop retailer.
 
-Your responsibilities:
-1. Greet customers warmly and professionally
-2. Ask about their laptop needs, budget, and use cases
-3. Provide personalized laptop recommendations
-4. Answer questions about products honestly
-5. Help customers book appointments
-6. Maintain a friendly, helpful tone throughout the conversation
+Your role:
+- Help customers find the perfect laptop based on their needs and budget
+- Give detailed, specific product recommendations with specs and prices
+- Answer every question thoroughly and conversationally
+- Keep responses natural and engaging, like a real sales conversation
+- Remember context from earlier in the conversation
 
-Guidelines:
-- Always be honest about product features and prices
-- Never make up specifications or prices
-- If a product isn't suitable, suggest alternatives
-- Be patient and answer follow-up questions
-- Encourage customers to book appointments for further discussion
-- Maintain conversation context throughout the interaction
+Product catalog:
+1. HP Pavilion 15 - Budget friendly, Intel i5, 8GB RAM, 512GB SSD - 42,000 INR
+2. Lenovo ThinkPad E14 - Business laptop, Intel i5, 16GB RAM, 512GB SSD - 65,000 INR
+3. ASUS ROG Strix G15 - Gaming, AMD Ryzen 7, RTX 3060, 16GB RAM, 512GB SSD - 95,000 INR
+4. Dell XPS 15 - Premium, Intel i7, RTX 3050, 32GB RAM, 1TB SSD, 4K OLED - 1,45,000 INR
+5. MacBook Pro M2 - Creative work, Apple M2, 16GB RAM, 512GB SSD - 1,30,000 INR
+6. Lenovo Legion 5 - Gaming, AMD Ryzen 5, RTX 3060, 16GB RAM, 512GB SSD - 78,000 INR
+7. HP Spectre x360 - Ultrabook, Intel i7, 16GB RAM, 512GB SSD, touchscreen - 1,10,000 INR
+8. ASUS VivoBook 15 - Mid range, Intel i5, 16GB RAM, 512GB SSD - 55,000 INR
 
-Remember: You're helping customers find the right laptop, not just making a sale."""
-    
+Important rules:
+- Always give specific prices in INR
+- Give detailed specs when asked
+- If budget is mentioned, only recommend laptops within that budget
+- Keep answers conversational, not bullet-point heavy
+- Ask follow-up questions to understand customer needs better
+- Never repeat the same answer twice"""
+
     def _format_conversation_history(self, conversation_history: List[Tuple[str, str]]) -> List[types.Content]:
-        """Format conversation history into proper Content objects.
-        
-        Args:
-            conversation_history: List of (user, assistant) message tuples.
-            
-        Returns:
-            List of properly formatted Content objects.
-        """
-        formatted_history = []
-        
+        formatted = []
         if not conversation_history:
-            return formatted_history
-        
+            return formatted
         for user_msg, assistant_msg in conversation_history:
-            # Add user message
-            formatted_history.append(
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=user_msg)]
-                )
-            )
-            # Add assistant message
-            formatted_history.append(
-                types.Content(
-                    role="model",
-                    parts=[types.Part.from_text(text=assistant_msg)]
-                )
-            )
-        
-        return formatted_history
-    
+            formatted.append(types.Content(role="user", parts=[types.Part.from_text(text=user_msg)]))
+            formatted.append(types.Content(role="model", parts=[types.Part.from_text(text=assistant_msg)]))
+        return formatted
+
     def send_message(
         self,
         user_message: str,
         product_context: str = "",
         conversation_history: List[Tuple[str, str]] = None,
     ) -> str:
-        """Send a message to the AI agent and get a response.
-        
-        Args:
-            user_message: User's input message.
-            product_context: Product information from RAG.
-            conversation_history: List of (user, assistant) message tuples.
-            
-        Returns:
-            Agent's response.
-        """
-        try:
-            if not GEMINI_API_KEY:
-                return "Error: Gemini API key not configured. Please set GEMINI_API_KEY in .env"
-            
-            # Add product context if available
-            context_message = ""
-            if product_context:
-                context_message = f"\n\nRelevant Product Information:\n{product_context}"
-            
-            # Add current user message with context
-            full_message = user_message + context_message
-            
-            # Initialize client with API key
-            client = genai.Client(api_key=GEMINI_API_KEY)
-            
-            # Format conversation history
-            contents = self._format_conversation_history(conversation_history)
-            
-            # Add current message
-            contents.append(
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=full_message)]
-                )
-            )
-            
-            # Generate response
-            response = client.models.generate_content(
-                model=self.model_name,
-                contents=contents,
-                config=GenerateContentConfig(
-                    system_instruction=self.system_prompt,
-                    temperature=0.7,
-                    max_output_tokens=1024,
-                )
-            )
-            
-            assistant_response = response.text
-            
-            logger.info(f"Agent response generated successfully")
-            return assistant_response
-            
-        except Exception as e:
-            logger.error(f"Error in send_message: {e}")
-            return f"I apologize, but I encountered an error processing your message. Please try again. Error: {str(e)}"
-    
-    def generate_summary(
-        self,
-        conversation_history: List[Tuple[str, str]],
-        customer_name: str = "Customer",
-    ) -> str:
-        """Generate a summary of the conversation.
-        
-        Args:
-            conversation_history: List of (user, assistant) message tuples.
-            customer_name: Name of the customer.
-            
-        Returns:
-            Conversation summary.
-        """
-        try:
-            if not GEMINI_API_KEY:
-                return "Error: Gemini API key not configured."
-            
-            # Build conversation text
-            conversation_text = ""
-            for i, (user_msg, assistant_msg) in enumerate(conversation_history):
-                conversation_text += f"Customer: {user_msg}\n"
-                conversation_text += f"Agent: {assistant_msg}\n\n"
-            
-            # Create summary prompt
-            summary_prompt = f"""Please analyze this customer conversation and provide a detailed summary in the following format:
+        if not GEMINI_API_KEY:
+            raise Exception("Gemini API key not configured")
 
-CONVERSATION ANALYSIS FOR {customer_name}
+        full_message = user_message
+        if product_context:
+            full_message += f"\n\nRelevant Product Info:\n{product_context}"
 
-SUMMARY:
-[2-3 sentence overview of the conversation]
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        contents = self._format_conversation_history(conversation_history)
+        contents.append(types.Content(role="user", parts=[types.Part.from_text(text=full_message)]))
+
+        # Retry up to 3 times on 503
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model=self.model_name,
+                    contents=contents,
+                    config=GenerateContentConfig(
+                        system_instruction=self.system_prompt,
+                        temperature=0.7,
+                        max_output_tokens=512,
+                    )
+                )
+                logger.info(f"Gemini responded on attempt {attempt + 1}")
+                return response.text
+            except Exception as e:
+                err = str(e)
+                if "503" in err or "UNAVAILABLE" in err:
+                    logger.warning(f"Gemini 503, attempt {attempt + 1}/3, retrying in 2s...")
+                    time.sleep(2)
+                    continue
+                raise Exception(err)
+
+        raise Exception("Gemini unavailable after 3 attempts")
+
+    def generate_summary(self, conversation_history: List[Tuple[str, str]], customer_name: str = "Customer") -> str:
+        try:
+            if not conversation_history:
+                return "No conversation to summarize."
+
+            # Build summary locally without Gemini
+            user_messages = [u for u, a in conversation_history]
+            agent_messages = [a for u, a in conversation_history]
+
+            # Extract budget
+            budget = "Not mentioned"
+            for msg in user_messages:
+                words = msg.lower().split()
+                for i, word in enumerate(words):
+                    if any(x in word for x in ["000", "inr", "rupee", "budget", "thousand"]):
+                        budget = msg
+                        break
+
+            # Extract requirements
+            requirements = []
+            keywords = {
+                "gaming": "Gaming laptop",
+                "video": "Video editing",
+                "edit": "Video/Photo editing",
+                "business": "Business use",
+                "office": "Office/Work use",
+                "student": "Student use",
+                "light": "Lightweight/Portable",
+                "fast": "High performance",
+                "cheap": "Budget friendly",
+                "design": "Design/Creative work",
+            }
+            for msg in user_messages:
+                for kw, label in keywords.items():
+                    if kw in msg.lower() and label not in requirements:
+                        requirements.append(label)
+
+            # Extract mentioned products
+            products = []
+            product_names = ["dell", "hp", "asus", "lenovo", "macbook", "apple", "legion", "rog", "spectre", "xps", "thinkpad", "pavilion", "vivobook"]
+            for msg in user_messages + agent_messages:
+                for p in product_names:
+                    if p in msg.lower() and p.title() not in products:
+                        products.append(p.title())
+
+            # Sentiment
+            positive_words = ["good", "great", "love", "perfect", "yes", "sure", "interested", "buy", "want"]
+            negative_words = ["no", "expensive", "costly", "bad", "not", "cant", "cannot"]
+            pos = sum(1 for m in user_messages for w in positive_words if w in m.lower())
+            neg = sum(1 for m in user_messages for w in negative_words if w in m.lower())
+            sentiment = "Positive" if pos > neg else "Negative" if neg > pos else "Neutral"
+
+            summary = f"""CALL SUMMARY - {customer_name}
+{'='*50}
+
+OVERVIEW:
+Customer had a {len(conversation_history)}-turn conversation with the TechStore sales agent about laptop purchases.
 
 CUSTOMER REQUIREMENTS:
-[What the customer is looking for]
+{chr(10).join(f'- {r}' for r in requirements) if requirements else '- General laptop inquiry'}
 
-BUDGET:
-[Mentioned budget or range]
+BUDGET MENTIONED:
+{budget}
 
-SENTIMENT:
-[Overall sentiment: Positive, Neutral, or Negative]
+PRODUCTS DISCUSSED:
+{chr(10).join(f'- {p}' for p in products) if products else '- Various TechStore laptops'}
 
-RECOMMENDED PRODUCTS:
-[Products discussed or recommended]
+SENTIMENT: {sentiment}
+
+CONVERSATION HIGHLIGHTS:
+- Customer asked {len(user_messages)} questions
+- Agent provided detailed recommendations
+- Topics covered: {', '.join(requirements) if requirements else 'general laptop needs'}
 
 NEXT STEPS:
-[Recommended follow-up actions]
+- Follow up with specific product demos
+- Send pricing details via email
+- Schedule in-store visit if interested
+{'='*50}"""
 
-CONVERSATION:
-{conversation_text}"""
-            
-            # Initialize client
-            client = genai.Client(api_key=GEMINI_API_KEY)
-            
-            # Get summary from Gemini
-            response = client.models.generate_content(
-                model=self.model_name,
-                contents=summary_prompt,
-                config=GenerateContentConfig(
-                    temperature=0.7,
-                    max_output_tokens=1024,
-                )
-            )
-            
-            logger.info("Call summary generated successfully")
-            return response.text
-            
+            return summary
+
         except Exception as e:
-            logger.error(f"Error generating summary: {e}")
-            return f"Could not generate summary. Error: {str(e)}"
-    
-    def clear_history(self) -> None:
-        """Clear conversation history."""
-        self.conversation_history = []
-        logger.info("Conversation history cleared")
+            return f"Summary error: {str(e)}"

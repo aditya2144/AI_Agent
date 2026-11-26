@@ -1,0 +1,364 @@
+================================================================================
+AI SALES VOICE AGENT - COMPLETE WORKFLOW & TECH STACK
+================================================================================
+
+PROJECT: TechStore AI Sales Voice Agent
+VERSION: 2.0 (Updated)
+DATE: November 2026
+
+OVERVIEW
+================================================================================
+Autonomous AI sales agent for TechStore that handles real-time voice
+conversations, qualifies leads, books appointments, and generates call
+summaries. Built as a continuous call experience where customers speak
+naturally and the agent responds with voice.
+
+================================================================================
+TECH STACK
+================================================================================
+
+BACKEND FRAMEWORK
+  - FastAPI (Python)
+    * Async request handling
+    * Auto-generated API docs at /docs
+    * Type-safe with Pydantic validation
+    * 25+ REST endpoints
+    * Port: 8000
+
+AI & LANGUAGE MODEL
+  - Google Gemini 3.8 Flash (via google-genai SDK)
+    * Model: gemini-3.8-flash
+    * Multi-turn conversation with full context history
+    * Product catalog embedded in system prompt
+    * 3x retry logic on 503/UNAVAILABLE errors
+    * 10 second timeout with smart keyword fallback
+    * 512 max output tokens for fast responses
+
+SPEECH PROCESSING
+  - OpenAI Whisper (Speech-to-Text)
+    * Model: base
+    * Fully offline, no API key needed
+    * Accepts WAV audio from browser mic
+    * Returns transcribed text
+
+  - pyttsx3 (Text-to-Speech)  [REPLACED gTTS]
+    * Offline TTS engine using Windows voices
+    * No internet connection required
+    * Generates real MP3 audio (250KB+ per response)
+    * Threading timeout: 10 seconds
+    * Why replaced: gTTS required internet and kept timing out
+
+KNOWLEDGE RETRIEVAL (RAG)
+  - LangChain + ChromaDB + HuggingFace
+    * Sentence Transformers: all-MiniLM-L6-v2
+    * 8 laptop products indexed as vectors
+    * Semantic search on customer queries
+    * Top 3 matching products injected into Gemini prompt
+
+DATABASE
+  - SQLite (Development) → PostgreSQL (Production)
+  - ORM: SQLAlchemy
+
+  Tables:
+    customers       - name, email, phone, budget, requirements,
+                      buying_timeline, lead_status, sentiment
+    conversations   - customer_id, message_type, content, timestamp
+    appointments    - customer_id, appointment_date, reason, status
+    call_summaries  - customer_id, summary, requirements, budget,
+                      sentiment, lead_classification
+
+FRONTEND
+  - Streamlit (Python)
+    * Continuous call UI (not tabbed dashboard)
+    * Chat bubbles (WhatsApp style)
+    * Auto-playing voice responses
+    * Beautiful summary cards
+    * Port: 8501
+
+SENTIMENT ANALYSIS
+  - TextBlob (offline, keyword-based)
+    * Polarity scoring
+    * Positive / Neutral / Negative classification
+
+CALL SUMMARY GENERATION
+  - Fully offline (no Gemini needed)
+    * Extracts budget from conversation
+    * Detects requirements via keywords
+    * Identifies products mentioned
+    * Calculates sentiment
+    * Generates structured summary report
+
+================================================================================
+PRODUCT CATALOG (Embedded in Agent)
+================================================================================
+
+  1. HP Pavilion 15          Intel i5, 8GB RAM, 512GB SSD        42,000 INR
+  2. ASUS VivoBook 15        Intel i5, 16GB RAM, 512GB SSD        55,000 INR
+  3. Lenovo ThinkPad E14     Intel i5, 16GB RAM, 512GB SSD        65,000 INR
+  4. Lenovo Legion 5         AMD Ryzen 5, RTX 3060, 16GB RAM      78,000 INR
+  5. ASUS ROG Strix G15      AMD Ryzen 7, RTX 3060, 16GB RAM      95,000 INR
+  6. HP Spectre x360         Intel i7, 16GB RAM, 512GB SSD       1,10,000 INR
+  7. MacBook Pro M2          Apple M2, 16GB RAM, 512GB SSD        1,30,000 INR
+  8. Dell XPS 15             Intel i7, RTX 3050, 32GB RAM, 4K    1,45,000 INR
+
+================================================================================
+COMPLETE CALL WORKFLOW
+================================================================================
+
+STEP 1: SETUP SCREEN
+  - User selects existing customer or creates new one
+  - Customer info displayed (name, status, budget)
+  - Click "Start Call" button
+
+STEP 2: CALL STARTS
+  - Full screen call UI opens
+  - Shows customer name and exchange counter
+  - Chat area displays conversation bubbles
+
+STEP 3: VOICE INPUT
+  Customer clicks mic → Records message
+       ↓
+  Audio (WAV) sent to POST /api/transcribe
+       ↓
+  Whisper transcribes audio to text
+       ↓
+  Text shown in chat bubble (green, right-aligned)
+
+STEP 4: AI PROCESSING
+  Transcribed text sent to POST /api/chat
+       ↓
+  RAG searches ChromaDB for matching products
+       ↓
+  Gemini 3.8 Flash called with:
+    - System prompt (agent persona + product catalog)
+    - Full conversation history
+    - Current message + product context
+       ↓
+  If Gemini fails (503): retry 3x with 2s delay
+  If still fails: smart keyword fallback response
+       ↓
+  Agent response text returned
+
+STEP 5: VOICE OUTPUT
+  Agent response sent to POST /api/text-to-speech
+       ↓
+  pyttsx3 generates MP3 audio (offline)
+       ↓
+  Audio returned to frontend
+       ↓
+  st.audio() plays automatically (autoplay=True)
+       ↓
+  Customer hears agent speaking
+
+STEP 6: REPEAT
+  Mic resets for next recording
+  Customer speaks again
+  Cycle repeats (continuous call)
+
+STEP 7: QUICK ACTIONS (During Call)
+  Qualify Lead    → POST /api/qualify-lead
+                    Scores customer Hot/Warm/Cold
+                    Displays colored badge result
+
+  Book Appointment → POST /api/appointments
+                     Creates appointment for next day
+                     Shows confirmation card
+
+  View Summary    → POST /api/call-summary
+                    Generates offline summary
+                    Opens dedicated summary screen
+
+STEP 8: CALL SUMMARY SCREEN
+  Displays:
+    - Metric cards: Exchanges, Sentiment, Budget
+    - Section cards with black text:
+      * Overview
+      * Customer Requirements
+      * Products Discussed
+      * Conversation Highlights
+      * Next Steps
+    - Back to Call or End & New Call buttons
+
+================================================================================
+LEAD QUALIFICATION ALGORITHM
+================================================================================
+
+  Input: budget, buying_timeline, requirements_match, sentiment
+
+  Scoring:
+    Budget > 500       → +3 points
+    Budget > 0         → +1 point
+    Timeline: today/this week → +3 points
+    Timeline: this month      → +2 points
+    Timeline: this quarter    → +1 point
+    Requirements match (0-10) → 0-2 points
+    Positive sentiment        → +2 points
+    Negative sentiment        → -2 points
+
+  Classification:
+    Score >= 7  → HOT  (ready to buy, priority follow-up)
+    Score >= 4  → WARM (interested, needs nurturing)
+    Score <  4  → COLD (low intent)
+
+================================================================================
+FALLBACK RESPONSE SYSTEM
+================================================================================
+
+  When Gemini is unavailable, the backend uses keyword matching:
+
+  Keywords         → Response Topic
+  laptop/buy/need  → Full product recommendations with specs/prices
+  price/budget/INR → Pricing breakdown for all 8 products
+  gaming/game      → Gaming laptops (Legion 5, ROG, MSI Katana)
+  video/edit       → Creator laptops (Dell XPS 15, MacBook Pro)
+  business/office  → Business laptops (ThinkPad, HP Spectre)
+  appointment/book → Scheduling demo session
+  hello/hi/hey     → Welcome greeting
+  specs/ram/gpu    → Detailed specifications
+  default          → Open-ended clarifying question
+
+================================================================================
+API ENDPOINTS
+================================================================================
+
+  POST /api/customers           Create customer
+  GET  /api/customers           List all customers
+  GET  /api/customers/{id}      Get customer
+  PUT  /api/customers/{id}      Update customer
+
+  POST /api/chat                Send message, get AI response
+  GET  /api/conversations/{id}  Get conversation history
+
+  POST /api/qualify-lead        Run lead scoring
+  POST /api/appointments        Book appointment
+  GET  /api/appointments        List appointments
+
+  POST /api/call-summary        Generate call summary
+  GET  /api/call-summaries/{id} Get summaries for customer
+
+  POST /api/transcribe          Audio → Text (Whisper)
+  POST /api/text-to-speech      Text → Audio (pyttsx3)
+
+  GET  /api/dashboard/stats     KPI metrics
+  GET  /api/health              Health check
+
+================================================================================
+FILE STRUCTURE
+================================================================================
+
+AI_Voice_Agent/
+  backend/
+    app/
+      main.py                   FastAPI app + all endpoints
+      agents/
+        sales_agent.py          Gemini AI + retry logic + fallback
+      voice/
+        speech_processor.py     Whisper STT + pyttsx3 TTS
+      rag/
+        knowledge_base.py       ChromaDB vector store
+        product_loader.py       Product indexing
+      lead_qualification/
+        classifier.py           Lead scoring algorithm
+      database/
+        models.py               SQLAlchemy ORM models
+        database.py             DB session management
+    .env                        GEMINI_API_KEY
+    sales_agent.db              SQLite database
+    requirements.txt            Python dependencies
+    test_workflow.py            End-to-end test script
+    test_voice.py               Voice endpoint tests
+    test_tts.py                 TTS endpoint test
+    test_gemini.py              Gemini model availability test
+    test_pyttsx3.py             pyttsx3 TTS test
+
+  frontend/
+    app.py                      Streamlit continuous call UI
+
+  WORKFLOW.txt                  This file
+
+================================================================================
+RUNNING THE APPLICATION
+================================================================================
+
+TERMINAL 1 - BACKEND:
+  $python = "C:\Users\solos\AppData\Local\Python\pythoncore-3.12-64\python.exe"
+  cd c:\Users\solos\OneDrive\Desktop\AI_Voice_Agent\backend
+  & $python -m uvicorn app.main:app --reload
+
+  Running at: http://localhost:8000
+  API Docs:   http://localhost:8000/docs
+  Health:     http://localhost:8000/api/health
+
+TERMINAL 2 - FRONTEND:
+  $python = "C:\Users\solos\AppData\Local\Python\pythoncore-3.12-64\python.exe"
+  cd c:\Users\solos\OneDrive\Desktop\AI_Voice_Agent\frontend
+  & $python -m streamlit run app.py
+
+  Running at: http://localhost:8501
+
+================================================================================
+KEY ISSUES RESOLVED DURING DEVELOPMENT
+================================================================================
+
+  1. gTTS timing out
+     Problem:  gTTS requires internet, kept hanging
+     Fix:      Replaced with pyttsx3 (fully offline Windows TTS)
+
+  2. Gemini 503 errors
+     Problem:  API overloaded, returned error string not exception
+     Fix:      Changed send_message to raise Exception on failure
+               Added 3x retry with 2s delay on 503
+               Smart keyword fallback when all retries fail
+
+  3. Duplicate Streamlit keys
+     Problem:  Multiple elements sharing same key caused crashes
+     Fix:      Unique keys using counters and version suffixes
+
+  4. Voice not auto-sending after transcription
+     Problem:  Transcribed text was set but send button not clicked
+     Fix:      Rewrote voice flow to auto-process after transcription
+
+  5. Summary showing API quota error (429)
+     Problem:  Gemini quota exhausted for summary generation
+     Fix:      Replaced with fully offline local summary generator
+               Extracts budget, requirements, products, sentiment
+               from conversation without any API calls
+
+  6. Import errors (backend.app vs app)
+     Problem:  Running from wrong directory caused import failures
+     Fix:      Always run uvicorn from backend/ directory
+
+  7. Frontend timeout on chat
+     Problem:  15s timeout too short for Gemini + TTS
+     Fix:      Increased all frontend timeouts to 30s
+
+================================================================================
+DEPLOYMENT CHECKLIST
+================================================================================
+
+  Completed:
+    Voice input (Whisper STT)
+    Voice output (pyttsx3 TTS)
+    AI conversation (Gemini 3.8 Flash)
+    Fallback responses (offline keyword matching)
+    Lead qualification (Hot/Warm/Cold)
+    Appointment booking
+    Call summary (offline generation)
+    Continuous call UI
+    Chat bubbles UI
+    Summary cards UI
+    Database persistence
+    Error handling + retry logic
+
+  For Production:
+    Switch SQLite to PostgreSQL
+    Add authentication (JWT)
+    Deploy backend to AWS/GCP
+    Deploy frontend to Streamlit Cloud
+    Add rate limiting
+    Set up monitoring (CloudWatch/Datadog)
+    Use secrets manager for API keys
+
+================================================================================
+END OF WORKFLOW
+================================================================================

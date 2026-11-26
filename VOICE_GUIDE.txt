@@ -1,0 +1,304 @@
+================================================================================
+VOICE AGENT - FRONTEND USER GUIDE
+================================================================================
+
+HOW TO USE VOICE FEATURES ON FRONTEND
+================================================================================
+
+STEP 1: ACCESS THE AI SALES ASSISTANT TAB
+  1. Open http://localhost:8501 in browser
+  2. Click "💬 AI Sales Assistant" in left sidebar
+  3. You should see the chat interface
+
+STEP 2: CREATE OR SELECT CUSTOMER
+  1. Select "New Customer" from dropdown
+  2. Enter customer name (e.g., "John Doe")
+  3. Click outside or press Enter
+  4. Customer will be created automatically
+
+STEP 3: ENABLE VOICE MODE
+  1. Look for the "🎤 Voice" checkbox on the right
+  2. Check the box to enable voice input/output
+  3. When enabled, you'll see voice input controls
+
+STEP 4: RECORD YOUR MESSAGE (VOICE INPUT)
+  1. Click the microphone button that appears
+  2. Record your message (e.g., "I need a laptop for video editing")
+  3. Click "Done" or press the record button again to stop
+  4. The system will show: "🔄 Transcribing audio..."
+  5. Your spoken words will be converted to text
+  6. Result shows: "✓ Transcribed: I need a laptop for video editing"
+
+STEP 5: AGENT RESPONDS
+  1. AI agent processes your message
+  2. Response appears in chat: "Agent: I recommend Dell XPS 15..."
+  3. If voice is enabled, you'll see: "🔊 Voice Output"
+  4. Click the audio player to hear the agent's response
+
+STEP 6: CONVERSATION CONTINUES
+  1. Record another message or type manually
+  2. Agent responds each time
+  3. Full conversation stored in database
+
+STEP 7: QUICK ACTIONS
+  After several messages, use quick buttons:
+  
+  - "Qualify Lead" → Rates customer as Hot/Warm/Cold
+  - "Book Appointment" → Schedules demo
+  - "Generate Summary" → Creates call summary
+
+================================================================================
+VOICE FEATURES EXPLAINED
+================================================================================
+
+VOICE INPUT (Speech-to-Text)
+  What it does: Converts your voice to text
+  Technology: OpenAI Whisper
+  Supported: All languages
+  How to use:
+    1. Enable "🎤 Voice" checkbox
+    2. Click microphone button
+    3. Speak your message
+    4. System transcribes automatically
+    
+  Example:
+    You say: "What's the best laptop for video editing?"
+    System transcribes: "What's the best laptop for video editing?"
+
+VOICE OUTPUT (Text-to-Speech)
+  What it does: AI response converted to audio you can listen to
+  Technology: Google Text-to-Speech (gTTS)
+  Supported: 100+ languages
+  How to use:
+    1. With voice enabled, agent response generates audio
+    2. Audio player appears below response
+    3. Click play button to listen
+    4. Can adjust volume using browser controls
+
+  Example:
+    Agent text: "I recommend the Dell XPS 15 with RTX 3060..."
+    Agent voice: (Audio plays with natural speech)
+
+================================================================================
+COMPLETE VOICE WORKFLOW EXAMPLE
+================================================================================
+
+SCENARIO: Customer calls about laptops
+
+TIME 1: CUSTOMER ENABLES VOICE
+  ✓ Checks "🎤 Voice" box
+  ✓ Chat interface now has microphone input
+
+TIME 2: CUSTOMER SPEAKS
+  Customer says: "Hi, I'm interested in laptops for video editing"
+  Whisper STT: Transcribes to text
+  Display: "✓ Transcribed: Hi, I'm interested in laptops for video editing"
+
+TIME 3: AGENT RESPONDS (AI + RAG)
+  System searches database for video editing laptops
+  Gemini generates response:
+  "Great! For video editing, I recommend the Dell XPS 15 with RTX 3060,
+   32GB RAM, and 4K display. It's perfect for rendering 4K footage."
+
+TIME 4: RESPONSE PLAYS AS VOICE
+  gTTS converts response to audio
+  Audio player appears
+  Customer clicks play
+  Hears natural speech: "Great! For video editing, I recommend..."
+
+TIME 5: CUSTOMER RESPONDS AGAIN
+  Customer speaks: "How much does that cost?"
+  Whisper transcribes: "How much does that cost?"
+  Agent responds with price
+  Response converted to voice automatically
+
+TIME 6: CONVERSATION CONTINUES
+  Repeat steps 5-6 for multiple messages
+  Each message and response stored in database
+  Lead qualification happens automatically
+
+TIME 7: END CALL
+  Click "Qualify Lead" button
+  System scores customer: "Hot Lead"
+  Click "Book Appointment"
+  Appointment scheduled for 2025-01-28 14:30
+  Click "Generate Summary"
+  AI creates summary of entire conversation
+
+TIME 8: REVIEW IN DASHBOARD
+  Go to "👥 Lead Management" tab
+  See customer marked as "Hot"
+  Go to "📅 Appointments" tab
+  See booked demo
+  Go to "📝 Call Summaries" tab
+  Read AI-generated summary
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+ISSUE: Microphone button doesn't appear
+  SOLUTION: 
+  1. Make sure "🎤 Voice" checkbox is CHECKED
+  2. Reload the page (F5)
+  3. Check browser microphone permissions
+
+ISSUE: "Recording not working" or "Stuck on record"
+  SOLUTION:
+  1. Allow microphone access when browser asks
+  2. Check if another app is using microphone
+  3. Restart browser
+  4. Try different browser (Chrome, Firefox, Edge)
+
+ISSUE: "🔄 Transcribing audio... takes forever"
+  SOLUTION:
+  1. Check backend is running (http://localhost:8000/docs)
+  2. Recording was too long (try shorter messages)
+  3. Audio quality is poor (speak clearly and closer to mic)
+  4. Backend error - check logs
+
+ISSUE: Audio response not playing
+  SOLUTION:
+  1. Check browser volume is up
+  2. Click the audio player button
+  3. Some browsers need you to interact first (click page)
+  4. Try refreshing page
+
+ISSUE: Voice heard but transcription is wrong
+  SOLUTION:
+  1. Speak more clearly and slower
+  2. Reduce background noise
+  3. Move microphone closer
+  4. Use text input instead (uncheck 🎤 Voice)
+
+================================================================================
+BEST PRACTICES
+================================================================================
+
+1. SPEAK CLEARLY
+   - Enunciate each word
+   - Avoid mumbling
+   - Speak at normal pace
+
+2. QUIET ENVIRONMENT
+   - Reduce background noise
+   - Close other apps
+   - Mute notifications
+
+3. GOOD MICROPHONE
+   - Built-in laptop mic works
+   - Better with external mic
+   - USB headset recommended
+
+4. SHORT MESSAGES
+   - Keep under 10 seconds
+   - Full sentences work best
+   - Avoid long monologues
+
+5. CLOSE TO MIC
+   - 6-12 inches away
+   - Direct into mic
+   - Avoid side angles
+
+6. USE EXACT TERMS
+   - Instead of: "I want that computer thing"
+   - Say: "I need a laptop for video editing"
+
+7. PAUSE BETWEEN MESSAGES
+   - Wait for agent to finish
+   - Then record next message
+   - Don't interrupt
+
+================================================================================
+KEYBOARD SHORTCUTS
+================================================================================
+
+GENERAL:
+  F5 - Refresh page
+  Ctrl+K - Clear chat history (custom)
+
+VOICE:
+  Space - Start/stop recording (browser dependent)
+  Tab - Move between buttons
+  Enter - Send text message
+
+================================================================================
+SUPPORTED BROWSERS
+================================================================================
+
+BEST (Full voice support):
+  ✓ Chrome 90+
+  ✓ Edge 90+
+  ✓ Firefox 88+
+
+GOOD (Limited):
+  ~ Safari 14+ (iOS/Mac)
+  ~ Opera 76+
+
+NOT RECOMMENDED:
+  ✗ Internet Explorer (EOL)
+  ✗ Older browsers
+
+USE DESKTOP FOR BEST EXPERIENCE
+
+================================================================================
+API ENDPOINTS (For Developers)
+================================================================================
+
+VOICE ENDPOINTS:
+
+POST /api/transcribe
+  Input: Audio file (WAV, MP3, etc.)
+  Output: {"transcription": "converted text"}
+  Purpose: Speech-to-text conversion
+
+POST /api/text-to-speech
+  Input: {"text": "Your message here"}
+  Output: MP3 audio file
+  Purpose: Text-to-speech conversion
+
+CHAT ENDPOINT (Works with voice):
+
+POST /api/chat
+  Input: {
+    "customer_id": 1,
+    "message": "text from voice OR manual input",
+    "conversation_history": [[user1, agent1], [user2, agent2]]
+  }
+  Output: {"response": "Agent's AI-generated response"}
+
+================================================================================
+FEATURES YOU NOW HAVE
+================================================================================
+
+✓ Voice input (record → transcribe → chat)
+✓ Voice output (response → synthesize → play)
+✓ Multi-turn conversations
+✓ Lead qualification
+✓ Appointment booking
+✓ Call summaries
+✓ Full database persistence
+✓ Real-time sentiment analysis
+✓ Product recommendations (RAG)
+✓ AI-powered responses (Gemini)
+
+READY FOR:
+✓ Live customer interactions
+✓ Sales demos
+✓ Real phone calls (with phone provider integration)
+✓ Commercial deployment
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Test with text first (disable voice)
+2. Enable voice and try one message
+3. Run full workflow: Voice → Chat → Qualify → Book → Summarize
+4. Try in "Lead Management" to see all data
+5. Check "Dashboard" for metrics
+6. Use "Appointments" to see scheduled demos
+
+ENJOY YOUR AI SALES VOICE AGENT!
+
+================================================================================
